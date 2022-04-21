@@ -1,0 +1,296 @@
+﻿<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>1. Genome_characteristics</title>
+  <link rel="stylesheet" href="https://stackedit.io/style.css" />
+</head>
+
+<body class="stackedit">
+  <div class="stackedit__html"><h1 id="genom---sekwencja-nukleotydów">Genom - sekwencja nukleotydów</h1>
+<h3 id="wprowadzenie">Wprowadzenie</h3>
+<p>W genomach zgromadzona jest większość informacji niezbędnej do funkcjonowania komórek i zestaw instrukcji niezbędnych do powielenia samych siebie. “Instrukcje” zawarte na polimerze kwasu deoksyrybonukleinowego warunkują strukturę i organizację przestrzenną DNA; określają sekwecje, a zatem również struktury i funkcje RNA i białek oraz stanowią podstawę regulalacji powstawania tych cząsteczek.  Na elementarnym poziomie ogrom różnorodnej informacji kodowanej przez genomy określony jest przez sekwencje złożone z czteroliterowego alfabetu {A,C,T,G}. Chociaż obecna analiza genomów opiera się przede wszystkim o dotychczas zgromadzoną wiedzę odnośnie znaczenia poszczególnych “słów”, informacja zawarta w surowej sekwencji - jej skład i ogólny stopień i charakter uporządkowania pozwala nam zdobyć pewien szeroki ogląd na genom, dostrzec jego niejednorodność i zauważyć sygnały mogące mieć znaczenie biologiczne.</p>
+<h3 id="cel-zajęć">Cel zajęć</h3>
+<p>W tym ćwiczeniu scharakteryzujemy genomy korzystając z naiwnych, nie odnoszących się do konkretnej wiedzy biologicznej miar, zastosujemy statystyczne metody pozwalające na ocenę przypadkowości obserwowanych sygnałów, oraz zwizualizujemy uzyskane wyniki.</p>
+<h3 id="środowisko">Środowisko</h3>
+<p>W trakcie ćwiczeń korzystać będziemy z  systemu zarzadzania pakietami  <a href="https://conda.io">Conda</a>. Sugeruję stworzyć jedno środowisko, do którego będziemy wracać w kolejnych ćwiczeniach. Niektóre programy będą wymagały stworzenia osobnego środowiska, ze wzgldu na niekompatybilność wersji wymaganych pakietów.</p>
+<p>Instalacja Condy:</p>
+<pre><code>wget  https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+chmod -x ./Miniconda3-latest-Linux-x86_64.sh  
+./Miniconda3-latest-Linux-x86_64.sh  
+/home/student/miniconda3/bin/conda init
+source ~/.bashrc
+conda config --add channels bioconda  
+conda config --add channels conda-forge
+conda install mamba
+</code></pre>
+<p>Stwórz środowisko w conda:</p>
+<pre><code>conda create -n genomika22 -c bioconda
+conda activate genomika22
+conda install python=3
+</code></pre>
+<p>Utwórz katalog roboczy</p>
+<pre><code>mkdir genome_statistics
+cd genome_statistics
+</code></pre>
+<h3 id="probabilistyczne-modele-sekwencji-genomowych">Probabilistyczne modele sekwencji genomowych</h3>
+<p>W tym ćwiczeniu, podobnie jak w części  kolejnych zajęć opierać będziemy się na symulacjach sekwencji genomowych, o rosnącym stopniu złożoności. Wiele problemów napotykanych w trakcie analiz genomicznych, takich jak dzisiejsze statystyki opisowe, przyrównywanie sekwencji, składanie genomów czy identyfikacja wariantów zależna jest jedynie od samej sekwencji, nie od jej znaczenia biologicznego. Wykorzystanie symulacji pozwoli nam na odniesienie otrzymanych w wyników do znanego nam modelu wyjściowego, i tym samym ocenę przeprowadzonej analizy. Dzięki temu poznamy wzajemny wpływ cech sekwencji i parametrów poszczególnych analiz. Istotną kwestią jest również zużycie zasobów obliczeniowych. Rozmiary genomów bywają bardzo duże, a ich analizy kosztowne i czasochłonne. Symulacje pozwolą na przećwiczenie zróżnicowanych podejść w trakcie zajęć, a poznane techniki będą mogły zostać wykorzystane do analizy realnych danych poza nimi.</p>
+<h4 id="modele-wielomianowe">Modele wielomianowe</h4>
+<p>Najprostszy model sekwencji zakłada niezależność pozycji i równomierne rozmieszczenie znaków. Sekwencja powstaje w wyniku procesu stochastycznego w którym znaki są kolejno losowane z alfabetu {A,C,T,G}. Prawdopodobieństwo wylosowania poszczególnych znaków może, lecz nie musi być jednostajne. Modele wielomianowe często traktowane są jako model zerowy, odstępstwa od którego mogą wskazywać na pewne interesujące regiony genomu.</p>
+<p><strong>Zadanie 1.</strong> Wygeneruj losową sekwencję nukleotydów o długości 1000 bp przy założeniu jednorodnego (jednostajnego) rozkładu nukleotydów. Wynik zapisz w formacie fasta.</p>
+<pre><code>import random
+nucleotides = ['A', 'T', 'C', 'G']
+length = 1000
+
+def random_seq(nucleotides, n):
+	random_set = [random.choice(nucleotides) for i in range(n)]
+	return ''.join(random_set)
+
+seq = random_seq(nucleotides, length)
+print(seq)
+</code></pre>
+<p><strong>Zadanie 2.</strong> Wygeneruj losową sekwencję nukleotydów o długości 1000 bp zakładając niejednorodny, arbitralny rozkład nukleotydów p(A) = 0.1, p(C) = 0.3, p(T) = 0.2. Wynik zapisz w formacie fasta.</p>
+<pre><code>weights = [0.1, ...]
+</code></pre>
+<p>albo:</p>
+<pre><code>nucleotides = {'A': 0.1, ......}
+</code></pre>
+<p>na przykład:</p>
+<pre><code>random.choices(list, weights, k)
+</code></pre>
+<h4 id="modele-markova-jako-modele-generatywne.">Modele Markova jako modele generatywne.</h4>
+<p>Klasą modeli często wykorzystywanych do analizy danych genomowych są modele Markova. Modele Markova od modeli wielomianowych (Procesu Bernouliego) odróżnia brak niezależności - prawdopodobieństwo zaobserwowania symbolu S zależne jest w pewien sposób od poprzedzającej go sekwencji.</p>
+<p>Najprostrzymi modelami Markova są łańcuchy Markova (Markov Chains), w przypadku których prawdopodobieństwo zaobserwowania symbolu S(n) na pozycji n zależy od sekwencji S(n-k:n-1) dla k-rzędowego łańcucha.</p>
+<p><strong>Zadanie 3.</strong> Wygeneruj losową sekwencję nukleotydów o długości 1000 bp zgodnie ze zilustrowanym na diagramie I-rzędowym procesem Markowa, zakładając jednorodny rozkład początkowy. Wynik zapisz w formacie fasta.<br>
+<img src="https://i2.wp.com/1.bp.blogspot.com/-_v4xzlnHqWk/T4jy6aaBEhI/AAAAAAAAAo8/_L0D5t0VS7o/s400/first.png?resize=400%2C347" alt="Image caption"></p>
+<pre><code>transition_matrix = {
+'A': {'A':0.6, 'C':0.1, 'T':0.2, 'G':0.1},
+'C': {'A':0.1, 'C':0.5, 'T':0.1, 'G':0.3},
+'T': {'A':0.4, 'C':0.05, 'T':0.5, 'G':0.05},
+'G': {'A':0.05, 'C':0.2, 'T':0.05, 'G':0.7}
+}
+</code></pre>
+<p><strong>Zadanie 4.</strong> W jaki sposób należałoby zmodyfikować diagram, aby był równoważny z modelami z zadania 1 i 2?</p>
+<p>Bardziej złożonymi modelami są Ukryte Modele Markova (HMM - Hidden Markov Models). W ich przypadku sekwencja definiowana jest przez zestaw stanów i prawdopodobieństw tranzycji między nimi, gdzie każdy stan cechuje inny rozkład prawdopodobieństwa emisji symboli. Modele te znalazły szerokie zastosowanie do modelowaniu zróżnicowanych problemów biologicznych - np. segmentacji sekwencji (np. egzon/intron), predykcji genów czy modelowania architektury sekwencji białkowych. Dobrym wprowadzeniem do HMM w analizie sekwencji biologicznych jest krótki artykuł:</p>
+<blockquote>
+<p>Eddy, S. What is a hidden Markov model?. <em>Nat Biotechnol</em>  <strong>22,</strong> 1315–1316 (2004). <a href="https://doi.org/10.1038/nbt1004-1315">https://doi.org/10.1038/nbt1004-1315</a></p>
+</blockquote>
+<p>Z HMM spotkamy się jeszcze podczas zajęć dotyczących adnotacji sekwencji biologicznych, dzisiaj wykorzystamy je w roli modeli generatywnych.</p>
+<p><strong>Zadanie 5.</strong> Wygeneruj  losową sekwencję nukleotydów o długości 1000 bp, składającą się z dwóch stanów ukrytych: A i B. Prawdopodobieństwo przejścia między stanami to: p(B|A) = 0.05, p(A|B) = 0.1. Prawdopodobieństwo emisji nukleotydów ze stanu A zgodne jest z rozkładem jednorodnym, prawdopodobieństwo emisji nukleotydów ze stanu B zgodne jest z rozkładem wielomianowym zdefiniowanym w Zadaniu 2. Załóż jednorodny rozkład początkowy. Wynik zapisz w formacie fasta.</p>
+<h3 id="charakterystyka-sekwencji">Charakterystyka sekwencji</h3>
+<p>W tej części scharakteryzujemy nasze"genomy" korzystając z kilku miar kompozycji oraz złożoności sekwencji. Zastosujemy je dla całego genomu, oraz w oknie. W ten sposób zlokalizujemy fragmenty które odbiegają od rozkładu losowego i w przypadku realnych danych mogą być istotne biologicznie.</p>
+<p><strong>Zadanie 6.</strong> Dla każdej z wygenerowanych sekwencji oblicz:</p>
+<ol>
+<li>Relatywny udział poszczególnych nukleotydów</li>
+<li>Zawartość GC (GC content)</li>
+<li>Asymetrię GC i AT (GC / AT skew) - stosunek G do C (A do T) na danej nici DNA</li>
+<li>Entropia Shannona (miara nieuporządkowania sekwencji, czyli zawartości informacji)<br>
+<span class="katex--display"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>H</mi><mo stretchy="false">(</mo><mi>X</mi><mo stretchy="false">)</mo><mo>=</mo><mo>−</mo><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mi>n</mi></munderover><mi>P</mi><mo stretchy="false">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo stretchy="false">)</mo><mi>l</mi><mi>o</mi><mi>g</mi><mi>P</mi><mo stretchy="false">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">H(X) = -\sum^n_{i=1}P(x_i)logP(x_i)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height: 1em; vertical-align: -0.25em;"></span><span class="mord mathnormal" style="margin-right: 0.08125em;">H</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right: 0.07847em;">X</span><span class="mclose">)</span><span class="mspace" style="margin-right: 0.277778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right: 0.277778em;"></span></span><span class="base"><span class="strut" style="height: 2.92907em; vertical-align: -1.27767em;"></span><span class="mord">−</span><span class="mspace" style="margin-right: 0.166667em;"></span><span class="mop op-limits"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height: 1.6514em;"><span class="" style="top: -1.87233em; margin-left: 0em;"><span class="pstrut" style="height: 3.05em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight"><span class="mord mathnormal mtight">i</span><span class="mrel mtight">=</span><span class="mord mtight">1</span></span></span></span><span class="" style="top: -3.05001em;"><span class="pstrut" style="height: 3.05em;"></span><span class=""><span class="mop op-symbol large-op">∑</span></span></span><span class="" style="top: -4.30001em; margin-left: 0em;"><span class="pstrut" style="height: 3.05em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">n</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height: 1.27767em;"><span class=""></span></span></span></span></span><span class="mspace" style="margin-right: 0.166667em;"></span><span class="mord mathnormal" style="margin-right: 0.13889em;">P</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height: 0.311664em;"><span class="" style="top: -2.55em; margin-left: 0em; margin-right: 0.05em;"><span class="pstrut" style="height: 2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height: 0.15em;"><span class=""></span></span></span></span></span></span><span class="mclose">)</span><span class="mord mathnormal" style="margin-right: 0.01968em;">l</span><span class="mord mathnormal">o</span><span class="mord mathnormal" style="margin-right: 0.03588em;">g</span><span class="mord mathnormal" style="margin-right: 0.13889em;">P</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">x</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height: 0.311664em;"><span class="" style="top: -2.55em; margin-left: 0em; margin-right: 0.05em;"><span class="pstrut" style="height: 2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">i</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height: 0.15em;"><span class=""></span></span></span></span></span></span><span class="mclose">)</span></span></span></span></span></span></li>
+<li>Złożoność Lempel’a-Ziv’a  - jest to liczba unikalnych podsłów (podsekwencji) spotykanych podczas czytania sekwencji od lewej do prawej. Może być wykrzystana jako miara powtarzalności sekwencji. Przykładowo: sekwencję ACTGTGATCCTGACTGA rozłożymy do A|C|T|G|TGA|TC|CTGA</li>
+</ol>
+<p>Obliczenia dotyczące kompozycji sekwencji możemy wykonać na przykład za pomocą zbioru narzędzi <a href="https://bioinf.shenwei.me/seqkit/">seqkit</a></p>
+<pre><code>conda install seqkit -c bioconda
+</code></pre>
+<p>Udział A:</p>
+<pre><code>seqkit fx2tab in.fa -n -B A
+</code></pre>
+<p>Zawartość GC:</p>
+<pre><code>seqkit fx2tab in.fa -n -B GC
+seqkit fx2tab in.fa -n -g
+</code></pre>
+<p>Asymetria GC:</p>
+<pre><code>seqkit fx2tab in.fa -n -g
+</code></pre>
+<p><strong>Zadanie 7.</strong> Powtórz obliczenia z zadania 6 stosując okno 20 bp i krok 5 bp. Zwizualizuj wyniki na wykresie liniowym. Opisz otrzymany wynik.</p>
+<pre><code>conda install matplotlib pandas
+</code></pre>
+<p>GC w seqkit:</p>
+<pre><code>cat in.fa| \
+seqkit sliding -s 5 -W 20 | \
+seqkit fx2tab -n -g &gt; gc_sliding
+</code></pre>
+<h3 id="profile-k-merów-oraz-ocena-ich-losowości">Profile k-merów oraz ocena ich losowości</h3>
+<p>Profil k-merów przedstawia zliczenia wszystkich podsłów o długości k danej sekwencji. Znając profil k-merów możemy zidentyfikować nad- i niedoreprezentowane sekwencje, z których obie klasy mogą być istotne biologicznie. Przykładowo słów determinujących miejsca wiązań czynników transkrypcyjnych możemy spodziewać się rzadko i tylko w określonych miejscach.</p>
+<p><strong>Zadanie 8.</strong> Dla sekwencji 1, 2 i 3 oblicz obserwowane częstości 2-merów oraz określ teoretyczne prawdopodobieństwo ich wystąpienia przy założeniu modelu wielomianowego.   Oblicz iloraz szans i logarytm ilorazu szans. Opisz otrzymany wynik.</p>
+<p><span class="katex--display"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>P</mi><mo stretchy="false">(</mo><mi>s</mi><mo stretchy="false">)</mo><mo>=</mo><mi>P</mi><mo stretchy="false">(</mo><msub><mi>s</mi><mn>1</mn></msub><msub><mi>s</mi><mn>2</mn></msub><mi mathvariant="normal">.</mi><mi mathvariant="normal">.</mi><mi mathvariant="normal">.</mi><msub><mi>s</mi><mi>n</mi></msub><mo stretchy="false">)</mo></mrow><annotation encoding="application/x-tex">P(s) = P(s_1s_2...s_n)</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height: 1em; vertical-align: -0.25em;"></span><span class="mord mathnormal" style="margin-right: 0.13889em;">P</span><span class="mopen">(</span><span class="mord mathnormal">s</span><span class="mclose">)</span><span class="mspace" style="margin-right: 0.277778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right: 0.277778em;"></span></span><span class="base"><span class="strut" style="height: 1em; vertical-align: -0.25em;"></span><span class="mord mathnormal" style="margin-right: 0.13889em;">P</span><span class="mopen">(</span><span class="mord"><span class="mord mathnormal">s</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height: 0.301108em;"><span class="" style="top: -2.55em; margin-left: 0em; margin-right: 0.05em;"><span class="pstrut" style="height: 2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">1</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height: 0.15em;"><span class=""></span></span></span></span></span></span><span class="mord"><span class="mord mathnormal">s</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height: 0.301108em;"><span class="" style="top: -2.55em; margin-left: 0em; margin-right: 0.05em;"><span class="pstrut" style="height: 2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mtight">2</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height: 0.15em;"><span class=""></span></span></span></span></span></span><span class="mord">...</span><span class="mord"><span class="mord mathnormal">s</span><span class="msupsub"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height: 0.151392em;"><span class="" style="top: -2.55em; margin-left: 0em; margin-right: 0.05em;"><span class="pstrut" style="height: 2.7em;"></span><span class="sizing reset-size6 size3 mtight"><span class="mord mathnormal mtight">n</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height: 0.15em;"><span class=""></span></span></span></span></span></span><span class="mclose">)</span></span></span></span></span></span><br>
+<span class="katex--display"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>o</mi><mi>r</mi><mo>=</mo><mfrac><mrow><mi>N</mi><mo stretchy="false">(</mo><mi>x</mi><mi>y</mi><mo stretchy="false">)</mo></mrow><mrow><mi>N</mi><mo stretchy="false">(</mo><mi>x</mi><mo stretchy="false">)</mo><mi>N</mi><mo stretchy="false">(</mo><mi>y</mi><mo stretchy="false">)</mo></mrow></mfrac></mrow><annotation encoding="application/x-tex">or = \frac{N(xy)}{N(x)N(y)}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height: 0.43056em; vertical-align: 0em;"></span><span class="mord mathnormal" style="margin-right: 0.02778em;">or</span><span class="mspace" style="margin-right: 0.277778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right: 0.277778em;"></span></span><span class="base"><span class="strut" style="height: 2.363em; vertical-align: -0.936em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height: 1.427em;"><span class="" style="top: -2.314em;"><span class="pstrut" style="height: 3em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right: 0.10903em;">N</span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mclose">)</span><span class="mord mathnormal" style="margin-right: 0.10903em;">N</span><span class="mopen">(</span><span class="mord mathnormal" style="margin-right: 0.03588em;">y</span><span class="mclose">)</span></span></span><span class="" style="top: -3.23em;"><span class="pstrut" style="height: 3em;"></span><span class="frac-line" style="border-bottom-width: 0.04em;"></span></span><span class="" style="top: -3.677em;"><span class="pstrut" style="height: 3em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right: 0.10903em;">N</span><span class="mopen">(</span><span class="mord mathnormal">x</span><span class="mord mathnormal" style="margin-right: 0.03588em;">y</span><span class="mclose">)</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height: 0.936em;"><span class=""></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span></span></p>
+<p>Powszechnie wykorzystywanym programem do analizy k-merów jest <a href="https://github.com/gmarcais/Jellyfish">jellyfish</a></p>
+<pre><code>conda install jellyfish -c bioconda
+</code></pre>
+<p>2 mery:</p>
+<pre><code>jellyfish count -m 2 -s 100M -t 10 -C in.fa -o twomers.jf
+</code></pre>
+<p>Aby wyświetlić zawartość pliku:</p>
+<pre><code>jellyfish dump twomers.jf
+</code></pre>
+<p>Liczebność AA:</p>
+<pre><code>jellyfish query twomers.jf AA
+</code></pre>
+<p>Histogram (profil k-merów):</p>
+<pre><code>jellyfish histo twomers.jf
+</code></pre>
+<p>Statystyki:</p>
+<pre><code>jellyfish stats twomers.jf 
+</code></pre>
+<p>Jednym ze sposobów na sprawdzenie losowości zaobserowanego sygnału często stosowanym w analizie sekwencji są randomizacje i metody Monte Carlo. Najprostszym przykładem są permutacje, czyli losowanie bez zwracania. Z sekwencji o długości L losujemy, bez zwracania nową sekwencję o długości L, dla której obliczamy interesującą nas statystykę (np. częstość występowania określonego k-meru). Proces powtarzamy N razy. W ten sposób otrzymujemy rozkład prawdopodobieństwa krotności zaobserwowania danego k-meru w losowej sekwencji o takich samych parametrach. Inną często stosowaną metodą jest bootstrap, w przypadku której losujemy ze zwracaniem (innymi słowy - losujemy z rozkładu wielomianowego z empirycznie określonymi częstościami występowania nukleotydów). W ten sposób możemy modelować populację, z której pochodzi nasza próba.</p>
+<p><strong>Zadanie 9.</strong> Wykorzystując test permutacyjny (100 iteracji, jednonukleotydowe próbkowanie) oszacuj rozkład częstości najczęściej spotykanego dinukleotydu w sekwencji 3. Określ prawdopodobieństwo wystąpienia częstości o wartości równej zaobserwowanej lub wyższej. Zobrazuj wynik na wykresie.</p>
+<h3 id="kolista-wizualizacja-danych-genomowych---biblioteka-circos">Kolista wizualizacja danych genomowych - biblioteka Circos</h3>
+<p>Często wykorzystywanym sposobem wizualizacji danych genomowych są wykresy oparte o okrąg, rozpropagowane w dużej mierze przez Martina Krzywinskiego, twórcę biblioteki <a href="http://circos.ca/">Circos</a>. Dużą zaletą takiej reprezentacji jest możliwośc zwizualizowania zależności (np. regionów syntenicznych, czy interakcji) między fragmentami genomów. Pakiet Circos jest niezwykle elastyczny i doskonale udokumentowany, <a href="http://circos.ca/documentation/tutorials/quick_start/">z wieloma przykładami i dokładnymi opisami funkcjonalności.</a> W tym ćwiczeniu stworzymy prosty wykres cyrkularny jednego z genomów, na którym zwizualizujemy uzyskane dotychczas wyniki.</p>
+<p><img src="http://circos.ca/intro/genomic_data/img/circos-conde-nast-large.png" alt="http://circos.ca/intro/genomic_data/"><br>
+<em><a href="http://circos.ca/intro/genomic_data/">http://circos.ca/intro/genomic_data/</a></em></p>
+<p><strong>Zadanie 10.</strong> Wizualizacja danych genomowych z pakietem Circos</p>
+<pre><code>conda install circos -c bioconda
+circos -conf config.conf
+</code></pre>
+<p>Aby stworzyć wykres, musimy przygotować kilka plików konfiguracyjnych:</p>
+<ol>
+<li><a href="http://circos.ca/documentation/tutorials/ideograms/karyotypes/">Kariotyp</a> - plik, w którym określamy podstawowe informacje dotyczące segmentów (chromosomów), które chcemy zwizualizować. Format:</li>
+</ol>
+
+<table>
+<thead>
+<tr>
+<th>chr</th>
+<th>-</th>
+<th>ID (w danych)</th>
+<th>etykieta</th>
+<th>początek</th>
+<th>koniec</th>
+<th>kolor</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>chr</td>
+<td>-</td>
+<td>1</td>
+<td>chromosome1</td>
+<td>0</td>
+<td>580076</td>
+<td>purple</td>
+</tr>
+</tbody>
+</table><ol start="2">
+<li><a href="http://circos.ca/documentation/tutorials/quick_start/hello_world/">Główny plik konfiguracyjny</a> - plik, w którym definiujemy elementy grafiki, oraz ich parametry. W głównym pliku konfiguracyjnym określamy lokalizację pliku z kariotypem:</li>
+</ol>
+<blockquote>
+<p>karyotype = karyo.conf</p>
+</blockquote>
+<ol start="4">
+<li>Elementami, które możemy uwzględnić na wykresie są <a href="http://m.in">m.in</a>.:</li>
+</ol>
+<p>Ideogramy, czyli segmenty “chromosomów”:</p>
+<blockquote>
+<p>&lt;ideogram&gt;</p>
+<p>&lt;spacing&gt; default = 0.005r &lt;/spacing&gt;</p>
+<p>radius           = 0.90r<br>
+thickness        = 20p<br>
+fill             = yes</p>
+<p>#stroke_thickness = 1<br>
+#stroke_color     = black</p>
+<p>&lt;/ideogram&gt;</p>
+</blockquote>
+<p>Oznaczenia osi (ticks):</p>
+<blockquote>
+<p>&lt;tick&gt; spacing        = 10000 u<br>
+color          = grey<br>
+size           = 10p<br>
+&lt;/tick&gt;</p>
+</blockquote>
+<p>Wykresy prezentujące dane liczbowe:</p>
+<blockquote>
+<p>&lt;plot&gt;</p>
+<p>type = histogram<br>
+file = gc_content.histo<br>
+thickness = 0p</p>
+<p>&lt;/plot&gt;</p>
+</blockquote>
+<p>Linie łączące elementy wykresu:</p>
+<blockquote>
+<p>&lt;links&gt;<br>
+&lt;link&gt; radius = 0.8r<br>
+bezier_radius = 0r<br>
+bezier_radius_purity = 0.9<br>
+color = black<br>
+thickness = 2<br>
+file = max_kmer.links<br>
+&lt;/link&gt;<br>
+&lt;/links&gt;</p>
+</blockquote>
+<ol start="5">
+<li>
+<p>Dodatkowe pliki konfiguracyjne - możemy definiować w nich te same elementy, co w głównym pliku konfiguracyjnym. Uwzględniamy je w głównym pliku linijką &lt;&lt;include name.conf&gt;&gt;.</p>
+</li>
+<li>
+<p>Pliki z danymi do wykresów w formacie:</p>
+</li>
+</ol>
+
+<table>
+<thead>
+<tr>
+<th>chr</th>
+<th>start</th>
+<th>stop</th>
+<th>wartość</th>
+<th>kolor</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>0</td>
+<td>100</td>
+<td>1.629407336396254</td>
+<td>fill_color=red</td>
+</tr>
+<tr>
+<td>0</td>
+<td>100</td>
+<td>200</td>
+<td>1.5523160283080437</td>
+<td>fill_color=red</td>
+</tr>
+</tbody>
+</table><ol start="7">
+<li>Pliki z danymi do połączeń w formacie:</li>
+</ol>
+
+<table>
+<thead>
+<tr>
+<th>id</th>
+<th>chrom</th>
+<th>start</th>
+<th>stop</th>
+<th>kolor</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>01</td>
+<td>0</td>
+<td>169475</td>
+<td>169522</td>
+<td>color=blue</td>
+</tr>
+<tr>
+<td>01</td>
+<td>0</td>
+<td>224535</td>
+<td>224555</td>
+<td>color=blue</td>
+</tr>
+</tbody>
+</table><p>Wykres tworzymy poleceniem:</p>
+<pre><code>circos -conf circos_conf.conf
+</code></pre>
+<h3 id="zadanie-domowe">Zadanie domowe:</h3>
+<p>Z bazy danych NCBI ( <a href="https://www.ncbi.nlm.nih.gov/datasets/genomes/">https://www.ncbi.nlm.nih.gov/datasets/genomes/</a>) pobierz wybrany przez siebie genom referencyjny, opublikowany nie wcześniej niż w 2018 roku. Scharakteryzuj go pod względem miar poznanych na zajęciach. Utwórz profil 21-merów. Jakie jest prawdopodobieństwo, że zaobserwowana liczebność najliczniejszego 21-meru jest przypadkowa? Zwizualizuj wyniki na kolistym wykresie.</p>
+<hr>
+</div>
+</body>
+
+</html>

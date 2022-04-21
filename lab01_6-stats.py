@@ -12,7 +12,6 @@ from PIL import Image
 import io
 
 
-
 def window(seq, size, step, func):
     length = len(seq)
     start = 0
