@@ -1,4 +1,6 @@
 import subprocess
+
+import numpy as np
 from Bio import SeqIO
 import pandas as pd
 
@@ -29,3 +31,5 @@ for file in filenames:
         probs.append(
             (kmers[kmer] / sum(list(kmers.values()))) / ((compo[kmer[0]] / len(s)) * (compo[kmer[1]] / len(s))))
     print(f"{file} probs:\n {probs}")
+    print(f"{np.prod(probs)}")
+
