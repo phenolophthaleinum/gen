@@ -42,7 +42,7 @@ def gc_skew(seq):
 
 def at_skew(seq):
     try:
-        return (seq.count("G") - seq.count("C")) / (seq.count("G") + seq.count("C"))
+        return (seq.count("A") - seq.count("T")) / (seq.count("A") + seq.count("T"))
     except ZeroDivisionError:
         return 1
 
