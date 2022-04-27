@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 from PIL import Image
 import io
+from lempel_ziv_complexity import lempel_ziv_complexity
 
 
 def window(seq, size, step, func):
@@ -54,7 +55,7 @@ def compo(seq):
 def shannon(seq):
     composition = compo(seq)
     entropy = 0
-    print(composition)
+    # print(composition)
     for base in composition:
         p = composition[base] / float(len(seq))
         try:
@@ -102,6 +103,7 @@ for filename in filenames:
             data_entropy[filename] = window(s, 20, 5, shannon)
             data_entropy["type"] = "shannon_entropy"
             data.append(pd.DataFrame(data_entropy))
+            print(f"Seq complexity: {lempel_ziv_complexity(s)}")
 # print(gc_df_data)
 #df = pd.DataFrame.from_dict(data, orient='columns')
 df = pd.concat(data[-4:])
