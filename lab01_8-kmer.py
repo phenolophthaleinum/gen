@@ -29,7 +29,7 @@ filenames = [
     "lab01_randomseq_weight.fasta",
 ]
 cmd = 'jellyfish count -m 2 -s 100M -t 10 -C lab01_randomseq.fasta -o randomseq_2mer.jf'
-
+plot_data = []
 for file in filenames:
     # output = f"{file}_2mer_dump.fasta"
     # with open(output, 'w') as f:
@@ -56,10 +56,16 @@ for file in filenames:
     print(f"Mean: {np.mean(list(probs.values()))}")
     df = pd.DataFrame(kmers, index=[0])
     df_l = pd.melt(df, value_vars=list(df))
+    df_l["file"] = file
     print(df_l)
+    plot_data.append(df_l)
+df_plot = pd.concat(plot_data)
+print(plot_data)
     # na pewno histogram?
     # fig = px.histogram(df_l, x="variable")
-    fig = px.bar(df_l, x='variable', y='value')
-    img_bytes = fig.to_image(format="png", width=640, height=480, scale=2)
-    image = Image.open(io.BytesIO(img_bytes))
-    image.save(f"{file}_hist.png")
+fig = px.bar(df_plot, x='variable', y='value', facet_row="file", color="value",
+             color_continuous_scale=px.colors.sequential.deep)
+fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
+img_bytes = fig.to_image(format="png", width=800, height=800, scale=2)
+image = Image.open(io.BytesIO(img_bytes))
+image.save(f"kmer_hist.png")
