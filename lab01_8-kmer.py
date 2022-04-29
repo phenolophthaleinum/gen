@@ -43,7 +43,7 @@ for file in filenames:
     # >>>>>>>>>>>>>>>>> old
     record, = SeqIO.parse(file, 'fasta')
     s = str(record.seq)
-    kmers = get_kmers(s, 2)
+    kmers = get_kmers(s, 3)
     compo = {base: s.count(base) for base in ['A', 'C', 'G', 'T']}
     probs = {}
     # nie wzor byl problemem
@@ -68,4 +68,4 @@ fig = px.bar(df_plot, x='variable', y='value', facet_row="file", color="value",
 fig.for_each_annotation(lambda a: a.update(text=a.text.split("=")[-1]))
 img_bytes = fig.to_image(format="png", width=800, height=800, scale=2)
 image = Image.open(io.BytesIO(img_bytes))
-image.save(f"kmer_hist.png")
+image.save(f"3mer_hist.png")

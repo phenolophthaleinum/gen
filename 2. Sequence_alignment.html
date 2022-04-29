@@ -1,0 +1,266 @@
+﻿<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2. Sequence_alignment</title>
+  <link rel="stylesheet" href="https://stackedit.io/style.css" />
+</head>
+
+<body class="stackedit">
+  <div class="stackedit__html"><h1 id="przyrównanie-sekwencji">Przyrównanie sekwencji</h1>
+<pre><code>mkdir sequence_alignment
+cd sequence_alignment
+</code></pre>
+<p>Przyrównanie sekwencji to podstawowy problem genomiki, który jest częścią niemal każdych badań w tej dziedzinie. Przyrównując sekwencje określamy ich dopasowanie oraz podobieństwo. Idea przyrównania sekwencji biologicznych, oparta jest na założeniu, że sekwencje mające wspólne pochodzenie, wywodzące się z jednej sekwencji ancestralnej są do siebie bardziej podobne od sekwencji niespokrewnionych, i możliwe jest odtworzenie wzajemnej relacji odpowiadających sobie pozycji, nawet jeśli te uległy jakiejś zmianie (np. na drodze ewolucji). Przyrównywanie sekwencji pozwala nam na znalezienie podobieństw i różnic między genomami; określić które części ulegają zmianom, a które są raczej stabilne; zidentyfikowanie sekwencji powtórzonych;    Generalnie wydzielić możemy dwa główne typy przyrównania sekwencji:</p>
+<ol>
+<li>
+<p>Przyrównanie globalne - jest to przyrównanie co najmniej dwóch sekwencji od ich początków do końców, maksymalizujące pewną funkcję dopasowania. Algorytmem, który znajduje optymalne dopasowanie dwóch sekwencji jest algorytm Needlemana-Wunscha, który zaimplementowany jest np. w narzędziu <a href="https://www.ebi.ac.uk/Tools/psa/emboss_needle/">Emboss Needle</a></p>
+</li>
+<li>
+<p>Przyrównanie lokalne - przyrównanie znajdujące maksymalnie dopasowane fragmenty sekwencji. Tego typu przyrównanie możemy uzyskać wykorzystując algorytm Smitha-Watermana (<a href="https://www.ebi.ac.uk/Tools/psa/emboss_water/">Emboss Water</a>)</p>
+</li>
+</ol>
+<p>Ze względu na ilość i rozmiar analizowanych sekwencji, do przyrównań wykorzystuje się różne heurystyki, które chociaż nie zawsze generują optymalne przyrównania, są jednak zdecydowanie szybsze i mniej zasobochłonne.  Powszechnie wykorzystywane metody przyrównania sekwencji oparte są o szybką identyfikację krótkich, dokładnych dopasowań (ziaren), rozszerzanie i weryfikację dopasowań.  “Seed and extend” -&gt; “Seed-chain-align”. Generalnie programy do przyrównywania sekwencji różnią się metodami wykorzystywanymi na każdym z tych etapów. Na każdym etapie przyrównania zoptymalizowanych może zostać wiele parametrów, w zależności od zastosowania oraz konkretnego przypadku.</p>
+<p>W tym ćwiczeniu zapoznamy się z kilkoma klasycznymi sytuacjami, w których wykorzystujemy przyrównanie sekwencji, oraz poznamy przykładowe programy służące temu celu.</p>
+<p><img src="https://media.springernature.com/lw685/springer-static/image/art%3A10.1186%2Fs13059-021-02443-7/MediaObjects/13059_2021_2443_Fig1_HTML.png" alt="figure 1"><br>
+<a href="https://genomebiology.biomedcentral.com/articles/10.1186/s13059-021-02443-7">https://genomebiology.biomedcentral.com/articles/10.1186/s13059-021-02443-7</a></p>
+<h3 id="przyrównanie-całych-genomów">Przyrównanie całych genomów</h3>
+<p>Wygeneruj “genom” składający się z dwóch chromosomów o długości 100kbp każdy, zgodnie z HMM: A i B. Prawdopodobieństwo przejścia między stanami to: p(B|A) = 0.05, p(A|B) = 0.001. Prawdopodobieństwo emisji stanu A zgodne jest z rozkładem jendorodnym, prawdopodobieństwo emisji stanu B to:</p>
+
+<table>
+<thead>
+<tr>
+<th></th>
+<th>A</th>
+<th>C</th>
+<th>T</th>
+<th>G</th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>A</td>
+<td>0.1</td>
+<td>0.1</td>
+<td>0.7</td>
+<td>0.1</td>
+<td></td>
+</tr>
+<tr>
+<td>T</td>
+<td>0.7</td>
+<td>0.1</td>
+<td>0.1</td>
+<td>0.1</td>
+<td></td>
+</tr>
+<tr>
+<td>C</td>
+<td>0.4</td>
+<td>0.1</td>
+<td>0.4</td>
+<td>0.1</td>
+<td></td>
+</tr>
+<tr>
+<td>G</td>
+<td>0.4</td>
+<td>0.1</td>
+<td>0.4</td>
+<td>0.1</td>
+<td></td>
+</tr>
+</tbody>
+</table><p>Na potrzeby tego ćwiczenia możemy posłużyć się skryptem:</p>
+<p><code>python mo_zad1.py 100000 seq.fa</code></p>
+<p>Aby skomplikować nieco genom, wprowadzimy do niego trochę powtórzeń tandemowych oraz rozproszonych duplikacji. Wykorzystamy skrypt, który oprócz sekwencji DNA w formacie fasta przyjmuje ciąg operacji s - SNV; i - małe indele; l - duże indele;  v - inwersje; t - duplikacje tandemowe; d - rozproszone duplikacje; n - translokacje niewzajemne (non-reciprocal); r - wzajemne translokacje.</p>
+<pre><code>python variantize.py seq.fa tdsitdtdsi &gt; seq1.fa
+</code></pre>
+<p>Wykorzystajmy profil kmerów do szybkiego porównania stopnia złożoności sekwencji:</p>
+<pre><code>jellyfish count -m 21 -s 100M seq.fa -o 21mers.jf
+jellyfish histo 21mers.jf
+
+
+jellyfish count -m 21 -s 100M seq1.fa -o 21mers_2.jf
+jellyfish histo 21mers_2.jf
+</code></pre>
+<p>Wykorzystując program nucmer z pakietu <a href="https://mummer4.github.io/manual/manual.html">MUMmer</a> dokonaj przyrównania dwóch genomów.  Innymi często stosowanymi programami do przyrównania całych genomów są np. <a href="https://www.ncbi.nlm.nih.gov/pmc/articles/PMC187518/">BLAT</a>, <a href="https://gitlab.com/mcfrith/last">LAST</a>, czy nowszy <a href="https://github.com/hsinnan75/GSAlign">GSAlign</a>.</p>
+<pre><code>conda install mummer -c bioconda
+nucmer -h 
+</code></pre>
+<p>Przyrównanie sekwencji:</p>
+<pre><code>nucmer --maxmatch seq.fa seq1.fa -p nucmer_out
+less nucmer_out.delta
+</code></pre>
+<p>Pzedstawienie w czytelnej formie:</p>
+<pre><code>show-coords -Trlc nucmer_out.delta &gt; nucmer_out.delta.coords
+</code></pre>
+<p>Wizualizacja za pomocą dotplotu:</p>
+<pre><code>mummerplot  nucmer_out.delta
+mummerplot -x "[1000,10000]" -y ["1000,10000]" nucmer_out.delta
+</code></pre>
+<p>W pliku delta przechowywane są również informacje dotyczące przyrównań na poziomie nukleotydowym. Dzięki temu możemy zidentyfikować małe warianty, którymi różnią się przyrównywane genomy:</p>
+<pre><code>show-snps 
+
+show-snps -T nucmer_out.delta|wc -l
+show-snps -TI nucmer_out.delta|wc -l
+show-snps -TCI nucmer_out.delta|wc -l
+</code></pre>
+<p>Aby ulepszyć identyfikację SNP możemy spróbować zidentyfikować najlepiej dopasowane powtórzenie:</p>
+<pre><code>delta-filter -rq nucmer_out.delta &gt; nucmer_out.filtered
+mummerplot nucmer_out.filtered
+show-snps -TCI nucmer_out.filtered|wc -l
+</code></pre>
+<p>Przyrównanie całego genomu możemy wykorzystać do identyfikacji sekwencji powtarzających się w obrębie jednego genomu:</p>
+<pre><code>nucmer --maxmatch --nosimplify seq.fa seq.fa -p nucmer_out
+mummerplot  nucmer_out.delta
+
+nucmer --maxmatch --nosimplify seq1.fa seq1.fa -p nucmer_out
+mummerplot  nucmer_out.delta
+show-coords -rT nucmer_out.delta|less
+show-coords -rT nucmer_out.delta|awk '$1!=$3'
+</code></pre>
+<p><strong>Zadanie dodatkowe</strong> - Czy istnieje związek między kompresowalnością (LZ / gzip) a obecnością sekwencji powtórzonych?</p>
+<h4 id="przyrównanie-dwóch-genomów-przy-pomocy-minimap2-i-wizualizacja-za-pomocą-dgenies">Przyrównanie dwóch genomów przy pomocy <a href="https://github.com/lh3/minimap2">minimap2</a> i wizualizacja za pomocą <a href="http://dgenies.toulouse.inra.fr/">dgenies</a></h4>
+<pre><code>conda install -c bioconda dgenies
+</code></pre>
+<p>Najlepiej odpalić w odrębnym terminalu:</p>
+<pre><code>dgenies run  
+
+minimap2 -x asm5 seq.fa seq1.fa &gt; aln.paf
+
+minimap2 -x asm5 -r100,1000 seq.fa seq1.fa &gt; aln.paf
+
+minimap2 -x asm5 -r100,1000 seq1.fa seq1.fa  &gt; aln.paf		
+
+minimap2 -x asm5 -r100,1000 -P seq1.fa seq1.fa  &gt; aln.paf		
+
+minimap2 -x asm5 -r100,1000 -P seq.fa seq.fa  &gt; aln.paf	
+</code></pre>
+<p>Szybki dotplot: <a href="https://www.bioinformatics.nl/cgi-bin/emboss/dotmatcher">Emboss Dotmatcher</a></p>
+<p><strong>Zadanie</strong></p>
+<p>Ze strony NCBI pobierz dwa genomy należące do tego samego gatunku (np. dwa szczepy bakterii) oraz do tego samego rodzaju (np. dwa gatunki bakterii). Przyrównaj genomy do siebie, zwizualizuj przyrównanie w formie dot-plotu. Zidentyfikuj i zintepretruj różnice między genomami. Czy pewne części genomu różnią się bardziej od pozostałych? Z czego może to wynikać? Przedstaw gęstość małych wariantów na genomie w formie wykresu liniowego.</p>
+<h4 id="wyszukiwanie-krótkich-fragmentów-homologicznych-przy-pomocy-blast">Wyszukiwanie krótkich fragmentów homologicznych przy pomocy <a href="https://blast.ncbi.nlm.nih.gov/Blast.cgi">Blast</a></h4>
+<pre><code>conda install blast -c bioconda
+
+jellyfish dump 21mers_2.jf|grep ^\&gt;2 -A1|head -2 &gt; query.fa
+
+
+blastn -subject seq1.fa -query query.fa
+</code></pre>
+<p>Domyślny program to megablast, z ziarnem o długości 28.<br>
+<a href="https://www.ncbi.nlm.nih.gov/books/NBK279684/table/appendices.T.blastn_application_options/">Parametry presetów blasta.</a></p>
+<pre><code>blastn -subject seq1.fa -query query.fa -word_size 5
+
+blastn -subject seq1.fa -query query.fa -task blastn-short
+blastn -subject seq1.fa -query query.fa -task blastn-short -outfmt 6
+blastn -subject seq1.fa -query query.fa -task blastn-short -outfmt 7
+blastn -subject seq1.fa -query query.fa -task blastn-short -outfmt '6 qseqid qlen sseqid sstart send qstart qend evalue bitscore length pident mismatch gapopen sstrand sseq qseq'
+blastn -subject seq1.fa -query query.fa -task blastn-short -outfmt '6 qseqid qlen sseqid sstart send qstart qend evalue bitscore length pident mismatch gapopen sstrand sseq qseq'|awk '$8 &lt; 1e-5'
+</code></pre>
+<p>Jeżeli nasze wyszukiwanie nie jest jednorazowe warto zbudować bazę danych sekwencji, korzystając z <a href="https://www.ncbi.nlm.nih.gov/books/NBK569841/">makeblastdb</a></p>
+<h3 id="mapowanie-odczytów">Mapowanie odczytów</h3>
+<p>Podstawą eksploracji genomów jest analiza ich sekwencji. Istnieje wiele sposobów sekwencjonowania genomów, jednak żaden z nich nie pozwala na odczytanie całej sekwencji. Zamiast tego otrzymywane są fragmenty o różnej długości i dokładności - w zależności od technologii. Kluczowym elementem wielu analiz genomowych jest zrekonstruowanie genomu, czyli odzyskanie informacji odnośnie wzajemnej relacji odczytów. Do tego celu wykorzystywane są dwa podejścia - składanie genomu (assembly) oraz - jeżeli istnieje złożenie, które możemy wykorzystać jako referencję - mapowanie odczytów do referencji.  W tym ćwiczeniu dokonamy symulacji odczytów z wiodących technologii sekwencjonowania i zapoznamy się z metodyką mapowania odczytów do genomu na przykładzie kilku popularnych narzędzi. Dodatkowo zapoznamy się z metodami wizualizacji danych w przeglądarce genomowej IGV.</p>
+<h4 id="illumina">Illumina</h4>
+<p><a href="https://www.illumina.com/content/dam/illumina-marketing/documents/products/illumina_sequencing_introduction.pdf">https://www.illumina.com/content/dam/illumina-marketing/documents/products/illumina_sequencing_introduction.pdf</a><br>
+Obecnie największą zaletą Illuminy jest niska cena.</p>
+<h5 id="symulacja-odczytów">Symulacja odczytów</h5>
+<p>Zadanie 1. Na podstawie wygenerowanego genomu, korzystając z programu <a href="https://doi.org/10.1093/bioinformatics/btr708">ART</a>, dokonaj symulacji odczytów Illumina o następujących parametrach: platforma HiSeqX, biblioteka PCR free, odczyty sparowane, długość odczytu 150 bp, średnia długość fragmentu 350 bp, odchylenie standardowe średniej długości fragmentu 10 bp, trzydziestokrotne pokrycie.  Następnie, po kontroli jakości i ewentualnym przygotowaniu, zmapuj odczyty do wyjściowego genomu przy pomocy bwa mem (domyślne parametry), posortuj oraz zindeksuj korzystając z <a href="http://www.htslib.org/">samtools</a>.</p>
+<pre><code>conda install art -c bioconda
+
+art_illumina
+art_illumina -ss HSXt -sam -i seq1.fa -p -l 150 -f 30 -m 350 -s 10 -o illumina
+</code></pre>
+<h5 id="kontrola-jakości">Kontrola jakości</h5>
+<pre><code>conda install -c bioconda fastqc
+fastqc illumina*fq
+</code></pre>
+<h5 id="usuwanie-adapterów">Usuwanie adapterów</h5>
+<p><img src="https://supportassets.illumina.com/content/dam/illumina-support/images/bulletins/PEcell1.png" alt="enter image description here"><br>
+<em><a href="https://support.illumina.com/bulletins/2016/04/adapter-trimming-why-are-adapter-sequences-trimmed-from-only-the--ends-of-reads.html">https://support.illumina.com/bulletins/2016/04/adapter-trimming-why-are-adapter-sequences-trimmed-from-only-the--ends-of-reads.html</a></em></p>
+<p>W tym przypadku nie ma konieczności usuwania adapterów. Jeżeli jednak w naszych odczytach są pozostałości adapterów, możemy je usunąć przy pomocy np. <a href="http://www.usadellab.org/cms/?page=trimmomatic">Trimmomatic</a> czy <a href="https://cutadapt.readthedocs.io/en/stable/">Cutadapt</a>.</p>
+<h5 id="mapowanie">Mapowanie</h5>
+<pre><code>conda install -c bioconda bwa samtools
+</code></pre>
+<p>Tworzenie indeksu:</p>
+<pre><code>bwa index seq1.fa
+</code></pre>
+<p>Mapowanie i sortowanie odczytów:</p>
+<pre><code>bwa mem -t 10 seq1.fa illumina1.fq illumina2.fq|samtools sort &gt; illumina_bwa.bam &amp;&amp; samtools index illumina_bwa.bam
+</code></pre>
+<p><a href="https://samtools.github.io/hts-specs/SAMv1.pdf">https://samtools.github.io/hts-specs/SAMv1.pdf</a></p>
+<p>W drugiej kolumnie rekordu zakodowane są bitowe <a href="https://broadinstitute.github.io/picard/explain-flags.html">Flagi</a>, opisujące pewne właściwości zmapowanych odczytów.</p>
+<h5 id="ocena-jakości-mapowania">Ocena jakości mapowania</h5>
+<p>Aby ocenić jakość mapowania, możemy wykorzystać programy w pakiecie samtools. Samtools flagstat podsumowuje statystyki flag:</p>
+<pre><code>samtools flagstat
+samtools stats
+samtools stats -r seq1.fa illumina_bwa.bam|grep ^\#
+samtools stats -r seq1.fa illumina_bwa.bam|grep ^SN
+</code></pre>
+<p>Bardzo dobrej jakości raporty dotyczące mapowania generuje program <a href="http://qualimap.conesalab.org/">Qualimap</a>:</p>
+<pre><code>conda install -c bioconda qualimap
+qualimap
+qualimap bamqc -bam illumina_bwa.bam -outdir qualimap_results
+</code></pre>
+<h5 id="filtrowanie-odczytów">Filtrowanie odczytów</h5>
+<p>Samtools umożliwia nam odfiltrowanie odczytów<br>
+samtools view illumina_bwa.bam “0:1-1000”|wc -l<br>
+samtools view illumina_bwa.bam -f 2|wc -l<br>
+samtools view illumina_bwa.bam -q 20|wc -l</p>
+<p>Pytanie: W jaki sposób odfiltrować niezmapowane odczyty? Jakie może być znaczenie niezmapowanych odczytów?</p>
+<h5 id="wizualizacja">Wizualizacja</h5>
+<p>Do wizualizacji zmapowanych odczytów wykorzystamy program <a href="https://software.broadinstitute.org/software/igv/">IGV</a>:</p>
+<pre><code>wget https://data.broadinstitute.org/igv/projects/downloads/2.12/IGV_Linux_2.12.3_WithJava.zip 
+unzip IGV_Linux_2.12.3_WithJava.zip 
+IGV_Linux_2.12.3/igv.sh
+</code></pre>
+<h3 id="nanopore">Nanopore</h3>
+<p>Odczyty Oxford Nanopore są obarczone dużo większym błędem, są jednak znacząco dłuższe. Obecny rekord to ponad 4 000 000 bp. Dodatkowo, zczytywany sygnał pochodzi z natywnych cząsteczek DNA, dzięki czemu możliwe jest wykrywanie modyfikacj DNA (np. metylacji)<br>
+<img src="https://media.springernature.com/full/springer-static/image/art%3A10.1038%2Fs41587-021-01108-x/MediaObjects/41587_2021_1108_Fig1_HTML.png?as=webp" alt="https://www.nature.com/articles/s41587-021-01108-x/figures/1"><br>
+<em><a href="https://www.nature.com/articles/s41587-021-01108-x/figures/1">https://www.nature.com/articles/s41587-021-01108-x/figures/1</a></em></p>
+<h5 id="symulacja-odczytów-1">Symulacja odczytów</h5>
+<p>Do symulacji odczytów nanopore wykorzystamy narzędzie <a href="https://github.com/rrwick/Badread">Badread</a>:<br>
+badread simulate --reference seq1.fa --quantity 20x &gt; nanopore.fq</p>
+<h5 id="mapowanie-1">Mapowanie</h5>
+<p>Jednym z najbardziej popularnych narzędzi do mapowania danych z sekwencjonowania trzeciej generacji jest Minimap2, który poznaliśmy już w kontekście przyrównania całych genomów i wykorzystamy go równieżteraz . Innymi często wykorzystywanymi programami są: <a href="https://github.com/philres/ngmlr">NGMLR</a>, <a href="https://github.com/ChaissonLab/LRA">LRA</a>, <a href="https://github.com/isovic/graphmap">GraphMap</a>, <a href="https://github.com/mchaisso/blasr">BLASR</a>,   <a href="https://github.com/mcfrith/last-genome-alignments">LAST</a>, <a href="https://github.com/marbl/MashMap">Mashmap</a>. Różnią się one czułością, specyficznością i szybkością. Istnieją również programy łączące zalety kilku maperów. Przykładowo <a href="https://gitlab.com/treangenlab/vulcan">VULCAN</a> mapuje odczyty szybkim  Minimap2, identyfikuje potencjalnie problematyczne regiony i remapuje je dokładniejszym NGMLR.</p>
+<p>minimap2 -t 10 -ax map-ont seq1.fa nanopore.fq|samtools sort &gt; nanopore.bam &amp;&amp; samtools index nanopore.bam</p>
+<p>Jeżeli to konieczne, adaptery możemy usunąć korzystając np z <a href="https://github.com/rrwick/Porechop">Porechop</a>.</p>
+<h3 id="pacbio-hifi">Pacbio HiFi</h3>
+<p>Odczyty HiFi stanowią kompromis między długością a jakością.<br>
+<img src="https://www.pacb.com/wp-content/uploads/HiFi-reads-img.svg" alt="https://www.pacb.com/technology/hifi-sequencing/"><br>
+<img src="https://www.pacb.com/wp-content/uploads/img_hifi_reads.svg" alt="enter image description here"><br>
+<em><a href="https://www.pacb.com/technology/hifi-sequencing/">https://www.pacb.com/technology/hifi-sequencing/</a></em></p>
+<h5 id="symulacja-odczytów-2">Symulacja odczytów</h5>
+<p>badread simulate --reference seq1.fa --quantity 20x --error_model pacbio2016 --qscore_model ideal --identity 99.5,100,0.5 --start_adapter_seq “” --end_adapter_seq “” --length 10000,3000 &gt; pacbio_hifi.fq</p>
+<h5 id="mapowanie-2">Mapowanie</h5>
+<p>minimap2 -t 10 -ax map-hifi seq1.fa pacbio_hifi.fq|samtools sort &gt; pacbio_hifi.bam &amp;&amp; samtools index pacbio_hifi.bam</p>
+<h3 id="przykład-genomu-diploidalnego">Przykład genomu diploidalnego</h3>
+<p>W praktyce rzadko zachodzi potrzeba mapowania odczytów do genomu, z którego pochodzą (chociaż jest to wykorzystywane podczas walidacji złożenia genomu). Generalnie odczyty mapujemy w celu zidentyfikowania różnic między genomami. Co więcej, w przypadku genomów eukariotycznych z reguły mamy do czynienia z wyższą ploidalnością, więc otrzymane odczyty pochodzą z różnych wersji chromosomów homologicznych. Wygenerujmy więc prosty przykład genomu diploidalnego, w którym spodziewać będziemy się zmienności w układzie homo- i heterozygotycznym.</p>
+<p>python <a href="http://variantize.py">variantize.py</a> seq1.fa si &gt;seq2.fa<br>
+python <a href="http://variantize.py">variantize.py</a> seq2.fa si &gt; seq3.fa<br>
+cat seq2.fa seq3.fa &gt; seq_diploid.fa</p>
+<p>Zadanie 1. Na podstawie wygenerowanego genomu wygeneruj odczyty Illumina PE, Nanopore i HiFi, zgodnie z poprzednimi przykładami, oraz zmapuj je do genomu.</p>
+<pre><code>art_illumina -ss HSXt -sam -i seq_diploid.fa -p -l 150 -f 15 -m 350 -s 10 -o illumina_diploid
+
+badread simulate --reference seq_diploid.fa --quantity 10x &gt; nanopore_diploid.fq
+
+badread simulate --reference seq_diploid.fa --quantity 10x --error_model pacbio2016 --qscore_model ideal --identity 99.5,100,0.5 --start_adapter_seq "" --end_adapter_seq "" --length 10000,3000 &gt; pacbio_hifi_diploid.fq
+
+bwa mem -t 10 seq1.fa illumina_diploid1.fq illumina_diploid2.fq|samtools sort &gt; illumina_diploid_bwa.bam &amp;&amp; samtools index illumina_diploid_bwa.bam
+
+minimap2 -t 10 -ax map-ont seq1.fa nanopore34.fq|samtools sort &gt; nanopore34.bam &amp;&amp; samtools index nanopore34.bam
+
+minimap2 -t 10 -ax map-hifi seq1.fa pacbio_hifi34.fq|samtools sort &gt; pacbio_hifi34.bam &amp;&amp; samtools index pacbio_hifi34.bam
+</code></pre>
+<p>Zadanie 2. Odfiltruj odczyty niezmapowane. Ile odczytów mapuje unikalnie?</p>
+<p>Zadanie 3. Oblicz i porównaj statystyki flag (samtools flagstat) oraz qualimap dla wyników  mapowań. Obejrzyj wyniki w IGV.</p>
+<p>Zadanie 4. Wykorzystując samtools depth stworz wykres głębokości pokrycia odczytów w oknie 150, krok 10. Jaki procent genomu pokryty jest przynajmniej 5x? Czy są fragmenty do którego nie mapują żadne odczyty? Czy profil ulegnie zmianie, kiedy odfiltrujemy odczyty mapujące nieunikalnie?</p>
+<p>Zadanie 5. Powtórz mapowanie krótkich odczytów, modyfikując długość ziarna do 2 i 150 bp. W jaki sposób zmiana wpływa na czas i wynik mapowania (ilość zmapowanych odczytów).</p>
+<p>Zadanie Dodatkowe. Porównaj dwa dowolne mappery krótkich odczytów (np bwa-mem i <a href="http://bowtie-bio.sourceforge.net/index.shtml">Bowtie</a>. Wykorzystując wiedzę na temat pochodzenia odczytów, oblicz ich precyzję (PPV, precision)  <span class="katex--display"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>p</mi><mo>=</mo><mfrac><mrow><mi>T</mi><mi>P</mi></mrow><mrow><mi>T</mi><mi>P</mi><mo>+</mo><mi>F</mi><mi>P</mi></mrow></mfrac></mrow><annotation encoding="application/x-tex">p = \frac{TP}{TP+FP}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height: 0.625em; vertical-align: -0.19444em;"></span><span class="mord mathnormal">p</span><span class="mspace" style="margin-right: 0.277778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right: 0.277778em;"></span></span><span class="base"><span class="strut" style="height: 2.12966em; vertical-align: -0.76933em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height: 1.36033em;"><span class="" style="top: -2.314em;"><span class="pstrut" style="height: 3em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right: 0.13889em;">TP</span><span class="mspace" style="margin-right: 0.222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right: 0.222222em;"></span><span class="mord mathnormal" style="margin-right: 0.13889em;">FP</span></span></span><span class="" style="top: -3.23em;"><span class="pstrut" style="height: 3em;"></span><span class="frac-line" style="border-bottom-width: 0.04em;"></span></span><span class="" style="top: -3.677em;"><span class="pstrut" style="height: 3em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right: 0.13889em;">TP</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height: 0.76933em;"><span class=""></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span></span> i czułość (True Positive Rate, sensitivity, recall) <span class="katex--display"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>r</mi><mo>=</mo><mfrac><mrow><mi>T</mi><mi>P</mi></mrow><mrow><mi>T</mi><mi>P</mi><mo>+</mo><mi>F</mi><mi>N</mi></mrow></mfrac></mrow><annotation encoding="application/x-tex">r = \frac{TP}{TP+FN}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height: 0.43056em; vertical-align: 0em;"></span><span class="mord mathnormal" style="margin-right: 0.02778em;">r</span><span class="mspace" style="margin-right: 0.277778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right: 0.277778em;"></span></span><span class="base"><span class="strut" style="height: 2.12966em; vertical-align: -0.76933em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height: 1.36033em;"><span class="" style="top: -2.314em;"><span class="pstrut" style="height: 3em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right: 0.13889em;">TP</span><span class="mspace" style="margin-right: 0.222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right: 0.222222em;"></span><span class="mord mathnormal" style="margin-right: 0.10903em;">FN</span></span></span><span class="" style="top: -3.23em;"><span class="pstrut" style="height: 3em;"></span><span class="frac-line" style="border-bottom-width: 0.04em;"></span></span><span class="" style="top: -3.677em;"><span class="pstrut" style="height: 3em;"></span><span class="mord"><span class="mord mathnormal" style="margin-right: 0.13889em;">TP</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height: 0.76933em;"><span class=""></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span></span>i wartość F (F-score) <span class="katex--display"><span class="katex-display"><span class="katex"><span class="katex-mathml"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><semantics><mrow><mi>F</mi><mn>1</mn><mo>=</mo><mfrac><mrow><mn>2</mn><mi>p</mi><mi>r</mi></mrow><mrow><mi>p</mi><mo>+</mo><mi>r</mi></mrow></mfrac></mrow><annotation encoding="application/x-tex">F1 = \frac{2pr}{p+r}</annotation></semantics></math></span><span class="katex-html" aria-hidden="true"><span class="base"><span class="strut" style="height: 0.68333em; vertical-align: 0em;"></span><span class="mord mathnormal" style="margin-right: 0.13889em;">F</span><span class="mord">1</span><span class="mspace" style="margin-right: 0.277778em;"></span><span class="mrel">=</span><span class="mspace" style="margin-right: 0.277778em;"></span></span><span class="base"><span class="strut" style="height: 2.20188em; vertical-align: -0.88044em;"></span><span class="mord"><span class="mopen nulldelimiter"></span><span class="mfrac"><span class="vlist-t vlist-t2"><span class="vlist-r"><span class="vlist" style="height: 1.32144em;"><span class="" style="top: -2.314em;"><span class="pstrut" style="height: 3em;"></span><span class="mord"><span class="mord mathnormal">p</span><span class="mspace" style="margin-right: 0.222222em;"></span><span class="mbin">+</span><span class="mspace" style="margin-right: 0.222222em;"></span><span class="mord mathnormal" style="margin-right: 0.02778em;">r</span></span></span><span class="" style="top: -3.23em;"><span class="pstrut" style="height: 3em;"></span><span class="frac-line" style="border-bottom-width: 0.04em;"></span></span><span class="" style="top: -3.677em;"><span class="pstrut" style="height: 3em;"></span><span class="mord"><span class="mord">2</span><span class="mord mathnormal">p</span><span class="mord mathnormal" style="margin-right: 0.02778em;">r</span></span></span></span><span class="vlist-s">​</span></span><span class="vlist-r"><span class="vlist" style="height: 0.88044em;"><span class=""></span></span></span></span></span><span class="mclose nulldelimiter"></span></span></span></span></span></span></span> Do wykonania zadania możesz wykorzystać program <a href="https://github.com/Cibiv/Teaser">Teaser</a>, lub napisać własną analizę.</p>
+</div>
+</body>
+
+</html>
