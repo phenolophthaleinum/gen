@@ -267,15 +267,18 @@ kpos_merged = merge_overlaps(kpos)
 print(kpos_merged)
 
 
-with open("max_kmer.links", "w") as out:
+with open("max_kmer_fix.links", "w") as out:
 	col = "blue"
+	used_ids = []
 	for i in range(len(kpos_merged)):
 		for j in range(len(kpos_merged)):
-			if i!=j:
+			if (i!=j) and int(f"{i}{j}") not in used_ids:
+				# print([i, j], sep=' | ')
 				lineout = [f"{i}{j}",chromname]+kpos_merged[i]+[f"color={col}"]              ## uwaga - tu jest ij i ji takie samo, czyli jest z powtorzeniami...
 				out.write("\t".join([str(x) for x in lineout])+"\n")
 				lineout = [f"{i}{j}",chromname]+kpos_merged[j]+[f"color={col}"]
 				out.write("\t".join([str(x) for x in lineout])+"\n")
+				used_ids.append(int(f"{i}{j}"))
 		
 
 
