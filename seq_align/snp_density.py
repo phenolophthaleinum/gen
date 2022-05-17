@@ -14,7 +14,7 @@ def get_snp(df, seqlen, size, step):
     df["P1"] = df["P1"].apply(lambda x: int(x))
     tags = ' - '.join(df[["TAG_R", "TAG_Q"]].values[0])
     while stop <= seqlen:
-        snps = len(df.loc[(df['P1'] >= start) & (df['P1'] <= stop)])
+        snps = len(df.loc[(df['P1'] >= start) & (df['P1'] <= stop + 1)])
         out[f"{start}-{stop}"] = snps
         start += step
         stop += step
@@ -25,8 +25,10 @@ def get_snp(df, seqlen, size, step):
 
 
 snpfiles = [
-    'seq_align/nucmer_genus_align__filter_snp_TCI.snps',
-    'seq_align/nucmer_strain_align3_filter_snp_TCI.snps'
+    # 'seq_align/nucmer_genus_align__filter_snp_TCI.snps',
+    # 'seq_align/nucmer_strain_align3_filter_snp_TCI.snps'
+    'seq_align/nucmer_genus_align_n1.snps',
+    'seq_align/nucmer_strain_align_n2.snps'
 ]
 genomes = [
     'seq_align/licheniformis.fna',
@@ -37,13 +39,13 @@ for snpfile, genome in zip(snpfiles, genomes):
     record, = SeqIO.parse(genome, 'fasta')
     filename = snpfile.split('.')[0]
     out = f'{filename}_fix.snps'
-    # os.system(f'tail -n +3 {snpfile} > {out}')
+    os.system(f'tail -n +3 {snpfile} > {out}')
     df = pd.read_table(out, header=None,
                        names=["P1", "SUB_R", "SUB_Q", "P2", "BUFF", "DIST", "FRM1", "FRM2", "TAG_R", "TAG_Q"])[1::]
     seq_len = len(record.seq)
 # df_snps = get_snp(df, 75000, 25000)
 # df_snps_melt = df_snps.melt(value_name='snp_number', var_name="pos")
-    data.append(get_snp(df, seq_len, 75000, 25000))
+    data.append(get_snp(df, seq_len, 75000, 75000))
 final_data = pd.concat(data)
 print(final_data)
 fig = px.line(final_data, x='pos', y='snp_number', facet_row="alignment", facet_row_spacing=0.2)
@@ -53,11 +55,12 @@ fig = px.line(final_data, x='pos', y='snp_number', facet_row="alignment", facet_
 # fig.update_yaxes(showticklabels=True)
 # fig.update_yaxes(matches=None)
 fig.for_each_xaxis(lambda xaxis: xaxis.update(showticklabels=True, matches=None))
+fig.update_xaxes(tickangle=45)
 # for k in fig.layout:
 #     if re.search('xaxis[1-9]+', k):
 #         fig.layout[k].update(matches=None)
 # fig.update_yaxes(showticklabels=True)
 img_bytes = fig.to_image(format="png", width=1400, height=1200, scale=2)
 image = Image.open(io.BytesIO(img_bytes))
-image.save("snps-test.png")
+image.save("snps-test_w_coords_75step+1.png")
 # fig.show()
